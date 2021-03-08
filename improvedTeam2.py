@@ -381,6 +381,7 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
         else:
             features['wrongZone'] = 0
 
+        #don't stop moving
         if action == 'Stop':
             features['moveIt'] = 1
 
@@ -393,4 +394,4 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
         return features
 
     def getWeights(self, gameState, action):
-        return {'invaderDistance': 100, 'wrongZone': -50, 'distanceToFood': -20, 'moveIt': -25}
+        return {'invaderDistance': 150, 'wrongZone': -50, 'distanceToFood': -20, 'moveIt': -25}
