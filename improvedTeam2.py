@@ -306,7 +306,6 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
     """
     def __init__(self, index, timeForComputing=.1):
         super().__init__(index, timeForComputing)
-        self.nearPacman = False
         self.selfEdibleGhost = False
 
     def checkEdibleGhosts(self, gameState, scareTime):
@@ -321,26 +320,6 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
                 self.selfEdibleGhost = True
                 return
         self.edibleGhosts = False
-
-    def checkNearPacman(self, gameState, dist):
-        """
-        Check if the agent is within 'dist' of opponent's pacman
-        """
-        myState = gameState.getAgentState(self.index)
-        myPos = myState.getPosition()
-
-        opp_state = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
-        chased = [p for p in opp_state if p.getPosition() != None and p.isPacman]
-
-        close_dist = 9999.0
-        if len(chased) > 0:
-            close_dist = min([float(self.getMazeDistance(myPos, c.getPosition())) for c in chased])
-
-        if close_dist < dist:
-            self.nearPacman = True
-            print("near ghosts")
-        else:
-            self.nearPacman = False
 
     def chooseAction(self, gameState):
         """
