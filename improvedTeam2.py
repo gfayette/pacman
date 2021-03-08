@@ -304,6 +304,60 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
     could be like.  It is not the best or only way to make
     such an agent.
     """
+    def __init__(self, index, timeForComputing=.1):
+        super().__init__(index, timeForComputing)
+        self.nearPacman = False
+        self.selfEdibleGhost = False
+
+    def checkEdibleGhosts(self, gameState, scareTime):
+        """
+        Check to see if your ghosts are edible and
+        their scareTimer is less than 'scareTime'
+        """
+        self_state = [gameState.getAgentState(i) for i in self.getTeam(gameState)]
+        for p in self_state:
+            if p.scaredTimer > scareTime:
+                print("Edible")
+                self.selfEdibleGhost = True
+                return
+        self.edibleGhosts = False
+
+    def checkNearPacman(self, gameState, dist):
+        """
+        Check if the agent is within 'dist' of opponent's pacman
+        """
+        myState = gameState.getAgentState(self.index)
+        myPos = myState.getPosition()
+
+        opp_state = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
+        chased = [p for p in opp_state if p.getPosition() != None and p.isPacman]
+
+        close_dist = 9999.0
+        if len(chased) > 0:
+            close_dist = min([float(self.getMazeDistance(myPos, c.getPosition())) for c in chased])
+
+        if close_dist < dist:
+            self.nearPacman = True
+            print("near ghosts")
+        else:
+            self.nearPacman = False
+
+    def chooseAction(self, gameState):
+        """
+        Picks among the actions with the highest Q(s,a).
+        """
+
+        self.checkEdibleGhosts(gameState, 3)
+        self.checkNearPacman(gameState, 6)
+
+        actions = gameState.getLegalActions(self.index)
+        values = [self.evaluate(gameState, a) for a in actions]
+        if self.index == 1:
+            print(values, file=sys.stderr)
+        maxValue = max(values)
+        bestActions = [a for a, v in zip(actions, values) if v == maxValue]
+
+        return random.choice(bestActions)
 
     def getFeatures(self, gameState, action):
         features = util.Counter()
@@ -312,23 +366,28 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
         myState = successor.getAgentState(self.index)
         myPos = myState.getPosition()
 
-        # Computes whether we're on defense (1) or offense (0)
-        features['onDefense'] = 1
-        if myState.isPacman: features['onDefense'] = 0
-
         # Computes distance to invaders we can see
         enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
         invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
-        features['numInvaders'] = len(invaders)
         if len(invaders) > 0:
+            features['wrongZone'] = 0
             dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
-            features['invaderDistance'] = min(dists)
+            if self.selfEdibleGhost:
+                features['invaderDistance'] = min(dists)
+            else:
+                features['invaderDistance'] = -min(dists)
+        elif myState.isPacman:
+            features['wrongZone'] = 1
+        else:
+            features['wrongZone'] = 0
 
-        if action == Directions.STOP: features['stop'] = 1
-        rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
-        if action == rev: features['reverse'] = 1
+        # Compute distance to the nearest food
+        foodList = self.getFood(successor).asList()
+        if len(foodList) > 0:
+            minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
+            features['distanceToFood'] = minDistance
 
         return features
 
     def getWeights(self, gameState, action):
-        return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 'reverse': -2}
+        return {'invaderDistance': 100, 'wrongZone': -50, 'distanceToFood': -25}
