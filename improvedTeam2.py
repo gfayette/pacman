@@ -349,15 +349,19 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
         invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
         if len(invaders) > 0:
             dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
+            #run away from pacman if edible
             if self.selfEdibleGhost:
                 features['invaderDistance'] = min(dists)
+            #chase pacman if not edible
             else:
                 features['invaderDistance'] = -min(dists)
+        #check to not move to the wrong area
         elif myState.isPacman:
             features['wrongZone'] = 1
         else:
             features['wrongZone'] = 0
 
+        #follow ghost if no pacmen to chase
         pacmen = [a for a in enemies if a.getPosition() != None and not a.isPacman]
         if len(pacmen) > 0:
             pacDists = [self.getMazeDistance(myPos, a.getPosition()) for a in pacmen]
