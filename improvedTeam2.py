@@ -188,7 +188,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         opp_state = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
         for p in opp_state:
             if p.scaredTimer > scareTime:
-                print("Edible")
+                #print("Edible")
                 self.edibleGhosts = True
                 return
         self.edibleGhosts = False
@@ -209,7 +209,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
 
         if close_dist < dist:
             self.nearGhosts = True
-            print("near ghosts")
+            #print("near ghosts")
         else:
             self.nearGhosts = False
 
@@ -316,7 +316,7 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
         self_state = [gameState.getAgentState(i) for i in self.getTeam(gameState)]
         for p in self_state:
             if p.scaredTimer > scareTime:
-                print("Edible")
+                #print("Edible")
                 self.selfEdibleGhost = True
                 return
         self.edibleGhosts = False
