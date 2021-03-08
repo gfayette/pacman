@@ -348,7 +348,6 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
         enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
         invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
         if len(invaders) > 0:
-            features['wrongZone'] = 0
             dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
             if self.selfEdibleGhost:
                 features['invaderDistance'] = min(dists)
@@ -358,6 +357,11 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
             features['wrongZone'] = 1
         else:
             features['wrongZone'] = 0
+
+        pacmen = [a for a in enemies if a.getPosition() != None and not a.isPacman]
+        if len(pacmen) > 0:
+            pacDists = [self.getMazeDistance(myPos, a.getPosition()) for a in pacmen]
+            features['pacmanDist'] = -min(pacDists)
 
         #don't stop moving
         if action == 'Stop':
@@ -372,4 +376,4 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
         return features
 
     def getWeights(self, gameState, action):
-        return {'invaderDistance': 150, 'wrongZone': -50, 'distanceToFood': -20, 'moveIt': -25}
+        return {'invaderDistance': 1000, 'wrongZone': -500, 'distanceToFood': -20, 'moveIt': -25, 'pacmanDist': 200}
