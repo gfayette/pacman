@@ -327,7 +327,6 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
         """
 
         self.checkEdibleGhosts(gameState, 3)
-        self.checkNearPacman(gameState, 6)
 
         actions = gameState.getLegalActions(self.index)
         values = [self.evaluate(gameState, a) for a in actions]
