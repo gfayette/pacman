@@ -257,7 +257,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         if self.nearGhostsTimer > 0 and not self.edibleGhosts:
             # Favor paths that take the agent home
             distance = self.getMazeDistance(myPos, self.start)
-            features['goHome'] = distance
+            features['goHome'] = 2 * distance
             # Assign fleeEnemy
             if action == 'Stop':
                 features['fleeEnemy'] = 100.0  # dont stop
@@ -280,8 +280,9 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
                 close_dist = min([float(self.getMazeDistance(myPos, c.getPosition())) for c in chasers])
             for c in chasers:
                 # If the ghost is at its starting location, then it was just eaten by Pacman
-                if c.getPosition() == (1, 1) or c.getPosition() == (30, 14):
-                    close_dist = 0.0  # Eat the ghost
+                if c.getPosition() == (1, 1) or c.getPosition() == (30, 14)\
+                        or c.getPosition() == (1, 2) or c.getPosition() == (30, 13):
+                    close_dist = -10.0  # Eat the ghost
             features['fleeEnemy'] = close_dist
 
         return features
