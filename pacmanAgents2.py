@@ -37,11 +37,9 @@ class JustEnoughAgent(Agent):
     def getAction(self, state):
 
         #If the score is in the green, then the agent heads home and doesn't risk getting caught, otherwise it collects pellets until it is ahead
+        #doesn't account for the pellets the agent has gotten, so it will endlessly collect pellets unless it somehow gets back
         if state.getScore() > 0:
-            #retreat
-            #remove stop
-            #weight current direction high
-            #weight path back higher
+            #retreat, if the team is ahead, it doesn't put itself in danger
 
             #holds a weighted distribution of options
             choiceDist = Counter(actions = state.getLegalPacmanActions())
@@ -82,11 +80,14 @@ class JustEnoughAgent(Agent):
 
 
         else:
+            #if behind, the agent goes for pellets
+            
             foodList = self.getFood(gameState).asList()
             thisState = state.getAgentState(self.index)
             thisPosition = ThisState.getPosition()
             nearestFood = self.nearestPellet(foodList, thisPosition)
-
+            
+            #store the direction of the nearest pellet so it can weight the option distribution
             weight1 = vectorToDirection((nearestFood[0] - thisPosition[0], 0))
             weight2 = vectorToDirection((0, nearestFood[1] - thisPosition[1]))
 
@@ -119,7 +120,7 @@ class JustEnoughAgent(Agent):
                 #store location of nearest ghost
                 ghostLocation = chasers[self.checkNearGhosts(state, 2)[1]]
 
-
+                
                 remove1 = vectorToDirection((ghostLocation[0] - thisPosition[0], 0))
                 remove2 = vectorToDirection((0, ghostLocation[1] - thisPosition[1]))
 
@@ -131,18 +132,22 @@ class JustEnoughAgent(Agent):
                 #I found this choosefromdistribution line in ghost agents, it looks like it picks an option using the counter as a weighted distribution, so hopefully it works
                 return util.chooseFromDistribution( choiceDist )
             else:
+                #if there are no options left, it means the only options are blocked by ghosts, so it just waits
                 return Directions.Stop
 
 
     def nearestPellet(self, foodList, position):
+        #set the minimum distance and index to be impossible values,
         mindDist = 9999
         index = -1
-
+        
+        #for loop goes through the foodlist, finds the closest pellet, and records the index
         for food in foodList:
             if (abs(food[0] - position[0]) + abs(food[1] - position[1])) < minDist:
                 mindDist = abs(food[0] - position[0]) + abs(food[1] - position[1])
                 index = foodList.index(food)
 
+        #returns a tuple containing the location of the nearest pellet
         return foodList[index]
 
     def checkNearGhosts(self, gameState, dist):
