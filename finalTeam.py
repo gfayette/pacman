@@ -1,4 +1,4 @@
-# offensiveReflexTeam2.py
+# finalTeam.py
 # ---------------
 # Licensing Information:  You are free to use or extend these projects for
 # educational purposes provided that (1) you do not distribute or publish
@@ -12,7 +12,7 @@
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
 
 
-# offensiveReflexTeam.py
+# finalTeam.py
 # ---------------
 # Licensing Information: Please do not distribute or publish solutions to this
 # project. You are free to use and extend these projects for educational
@@ -39,7 +39,6 @@ def createTeam(firstIndex, secondIndex, isRed,
     team, initialized using firstIndex and secondIndex as their agent
     index numbers.  isRed is True if the red team is being created, and
     will be False if the blue team is being created.
-
     As a potentially helpful development aid, this function can take
     additional string-valued keyword arguments ("first" and "second" are
     such arguments in the case of this function), which will come from
@@ -141,8 +140,8 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
 
     def __init__(self, index, timeForComputing=.1):
         super().__init__(index, timeForComputing)
-        self.nearGhosts = False
         self.edibleGhosts = False
+        self.nearGhostsTimer = 0
 
     def isDeadEnd(self, successor, depth, previous):
         """
@@ -177,7 +176,6 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         opp_state = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
         for p in opp_state:
             if p.scaredTimer > scareTime:
-                print("Edible")
                 self.edibleGhosts = True
                 return
         self.edibleGhosts = False
@@ -185,6 +183,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
     def checkNearGhosts(self, gameState, dist):
         """
         Check if the agent is within 'dist' of opponent's ghosts
+        and set a timer if so
         """
         myState = gameState.getAgentState(self.index)
         myPos = myState.getPosition()
@@ -197,10 +196,13 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
             close_dist = min([float(self.getMazeDistance(myPos, c.getPosition())) for c in chasers])
 
         if close_dist < dist:
-            self.nearGhosts = True
-            print("near ghosts")
+            self.nearGhostsTimer = 5
         else:
-            self.nearGhosts = False
+            if self.nearGhostsTimer > 0:
+                self.nearGhostsTimer -= 1
+
+        if myPos == self.start:
+            self.nearGhostsTimer = 0
 
     def chooseAction(self, gameState):
         """
@@ -208,7 +210,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         """
 
         self.checkEdibleGhosts(gameState, 4)
-        self.checkNearGhosts(gameState, 7)
+        self.checkNearGhosts(gameState, 8)
 
         actions = gameState.getLegalActions(self.index)
 
@@ -222,69 +224,70 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         return random.choice(bestActions)
 
     def getFeatures(self, gameState, action):
+        """
+        Returns a counter of features for the state
+        """
         features = util.Counter()
         successor = self.getSuccessor(gameState, action)
 
+        # State and position
         myState = successor.getAgentState(self.index)
         myPos = myState.getPosition()
 
+        # Assign successorScore
         foodList = self.getFood(successor).asList()
-        features['successorScore'] = -len(foodList)
-
-        # Compute distance to the nearest food
-        if len(foodList) > 0:
-            minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
-            features['distanceToFood'] = minDistance
-
-        # Compute distance to the nearest capsule
         capsules = self.getCapsules(successor)
-        if len(capsules) > 0:
-            distance = min([self.getMazeDistance(myPos, capsule) for capsule in capsules])
-            features['distanceToCapsule'] = distance
+        features['successorScore'] = -1 * (len(foodList) + len(capsules))
 
-        # Weight goHome in proportion to how many food the agent has
+        # Compute distance to the nearest food or capsule and assign distanceToFood
+        minFoodDist = 9999.0
+        if len(foodList) > 0:
+            minFoodDist = min([self.getMazeDistance(myPos, food) for food in foodList])
+        minCapsuleDist = 9999.0
+        if len(capsules) > 0:
+            minCapsuleDist = min([self.getMazeDistance(myPos, capsule) for capsule in capsules])
+        features['distanceToFood'] = min([minFoodDist, minCapsuleDist])
+
+        # Assign goHome in proportion to how many pieces of food the agent is carrying
         numCarrying = gameState.getAgentState(self.index).numCarrying
         distance = self.getMazeDistance(myPos, self.start)
         features['goHome'] = distance * numCarrying
 
-
         # If the agent is near ghosts and they are not edible
-        if self.nearGhosts and not self.edibleGhosts:
+        if self.nearGhostsTimer > 0 and not self.edibleGhosts:
             # Favor paths that take the agent home
-            features['goHome'] = 5
-
+            distance = self.getMazeDistance(myPos, self.start)
+            features['goHome'] = distance
+            # Assign fleeEnemy
             if action == 'Stop':
-                features['fleeEnemy'] = 20.0  # dont stop
+                features['fleeEnemy'] = 100.0  # dont stop
             elif self.isDeadEnd(successor, 6, gameState.getAgentState(self.index).getPosition()):
-                features['fleeEnemy'] = 20.0  # don't go down a dead end
+                features['fleeEnemy'] = 100.0  # don't go down a dead end
                 print(str(myPos), " is a dead end")
-            else:  # Use the 'fleeEnemy' feature to discourage the agent from moving towards the closest ghost
+            else:  # Use the fleeEnemy feature to discourage the agent from moving towards the closest ghost
                 close_dist = 9999.0
                 opp_fut_state = [successor.getAgentState(i) for i in self.getOpponents(successor)]
                 chasers = [p for p in opp_fut_state if p.getPosition() != None and not p.isPacman]
                 if len(chasers) > 0:
                     close_dist = min([float(self.getMazeDistance(myPos, c.getPosition())) for c in chasers])
-                features['fleeEnemy'] = 1.0 / close_dist
-        # If the ghosts are edible, use the 'fleeEnemy" feature to encourage the agent to chase the closest ghost
+                features['fleeEnemy'] = -close_dist
+        # If the ghosts are edible, use the fleeEnemy feature to encourage the agent to chase the closest ghost
         elif self.edibleGhosts:
             close_dist = 9999.0
-            if gameState.getAgentState(self.index).isPacman:
-                opp_fut_state = [successor.getAgentState(i) for i in self.getOpponents(successor)]
-                chasers = [p for p in opp_fut_state if p.getPosition() != None and not p.isPacman]
-                if len(chasers) > 0:
-                    close_dist = min([float(self.getMazeDistance(myPos, c.getPosition())) for c in chasers])
-                # Eat ghost
-                for c in chasers:
-                    # If the ghost is at its starting location, then it was just eaten by Pacman
-                    if c.getPosition() == (1, 1) or c.getPosition() == (30, 14):
-                        close_dist = 0.001  # Eat the ghost
-                        print("ayyy")
-            features['fleeEnemy'] = -1.0 / close_dist
+            opp_fut_state = [successor.getAgentState(i) for i in self.getOpponents(successor)]
+            chasers = [p for p in opp_fut_state if p.getPosition() != None and not p.isPacman]
+            if len(chasers) > 0:
+                close_dist = min([float(self.getMazeDistance(myPos, c.getPosition())) for c in chasers])
+            for c in chasers:
+                # If the ghost is at its starting location, then it was just eaten by Pacman
+                if c.getPosition() == (1, 1) or c.getPosition() == (30, 14):
+                    close_dist = 0.0  # Eat the ghost
+            features['fleeEnemy'] = close_dist
 
         return features
 
     def getWeights(self, gameState, action):
-        return {'successorScore': 100, 'distanceToFood': -1.7, 'fleeEnemy': -20.0, 'distanceToCapsule': -2.1, 'goHome': -1.1}
+        return {'successorScore': 100, 'distanceToFood': -2.0, 'fleeEnemy': -20.0, 'goHome': -1.5}
 
 
 class DefensiveReflexAgent(ReflexCaptureAgent):
@@ -296,7 +299,6 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
     """
     def __init__(self, index, timeForComputing=.1):
         super().__init__(index, timeForComputing)
-        self.nearPacman = False
         self.selfEdibleGhost = False
 
     def checkEdibleGhosts(self, gameState, scareTime):
@@ -307,30 +309,10 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
         self_state = [gameState.getAgentState(i) for i in self.getTeam(gameState)]
         for p in self_state:
             if p.scaredTimer > scareTime:
-                print("Edible")
+                #print("Edible")
                 self.selfEdibleGhost = True
                 return
         self.edibleGhosts = False
-
-    def checkNearPacman(self, gameState, dist):
-        """
-        Check if the agent is within 'dist' of opponent's pacman
-        """
-        myState = gameState.getAgentState(self.index)
-        myPos = myState.getPosition()
-
-        opp_state = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
-        chased = [p for p in opp_state if p.getPosition() != None and p.isPacman]
-
-        close_dist = 9999.0
-        if len(chased) > 0:
-            close_dist = min([float(self.getMazeDistance(myPos, c.getPosition())) for c in chased])
-
-        if close_dist < dist:
-            self.nearPacman = True
-            print("near pacman")
-        else:
-            self.nearPacman = False
 
     def chooseAction(self, gameState):
         """
@@ -338,7 +320,6 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
         """
 
         self.checkEdibleGhosts(gameState, 3)
-        self.checkNearPacman(gameState, 6)
 
         actions = gameState.getLegalActions(self.index)
         values = [self.evaluate(gameState, a) for a in actions]
@@ -360,16 +341,24 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
         enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
         invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
         if len(invaders) > 0:
-            features['wrongZone'] = 0
             dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
+            #run away from pacman if edible
             if self.selfEdibleGhost:
                 features['invaderDistance'] = min(dists)
+            #chase pacman if not edible
             else:
                 features['invaderDistance'] = -min(dists)
+        #check to not move to the wrong area
         elif myState.isPacman:
             features['wrongZone'] = 1
         else:
             features['wrongZone'] = 0
+
+        #follow ghost if no pacmen to chase
+        pacmen = [a for a in enemies if a.getPosition() != None and not a.isPacman]
+        if len(pacmen) > 0:
+            pacDists = [self.getMazeDistance(myPos, a.getPosition()) for a in pacmen]
+            features['pacmanDist'] = -min(pacDists)
 
         #don't stop moving
         if action == 'Stop':
@@ -384,4 +373,4 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
         return features
 
     def getWeights(self, gameState, action):
-        return {'invaderDistance': 150, 'wrongZone': -50, 'distanceToFood': -20, 'moveIt': -25}
+        return {'invaderDistance': 1000, 'wrongZone': -500, 'distanceToFood': -20, 'moveIt': -25, 'pacmanDist': 200}
