@@ -210,7 +210,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
         """
 
         self.checkEdibleGhosts(gameState, 4)
-        self.checkNearGhosts(gameState, 8)
+        self.checkNearGhosts(gameState, 4)
 
         actions = gameState.getLegalActions(self.index)
 
